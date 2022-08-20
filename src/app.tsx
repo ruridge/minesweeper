@@ -18,8 +18,6 @@ const LEVELS = {
     mines: 99,
   },
 }
-type dificulty = 'beginner' | 'intermediate' | 'expert'
-
 type gameTileType = {
   row: number
   col: number
@@ -47,7 +45,7 @@ function createGameBoard({
           return {
             row,
             col,
-            isMine: Math.floor(Math.random() * mines) === 0,
+            isMine: Math.floor(Math.random() * 2) === 0, // 1 in 2 chance of being a mine for testing
             isRevealed: false,
             isFlagged: false,
           }
@@ -64,30 +62,28 @@ function GameTile({
   onTileClick: (tile: gameTileType) => void
   onTileContextMenu: (tile: gameTileType) => void
 }) {
-  const [uncovered, setUncovered] = useState(false)
-  const [isFlagged, setIsFlagged] = useState(false)
   const handleClick = () => {
-    if (isFlagged) return
-    setUncovered(true)
+    // don't do anything if the tile is already flagged or revealed
+    if (tile.isFlagged || tile.isRevealed) return
     onTileClick(tile)
   }
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    if (uncovered) return
-    setIsFlagged(!isFlagged)
+    // don't do anything if tile is already revealed
+    if (tile.isRevealed) return
     onTileContextMenu(tile)
   }
   return (
     <button
       className={clsx([
-        uncovered ? 'bg-gray-200' : 'bg-gray-300',
+        tile.isRevealed ? 'bg-gray-200' : 'bg-gray-300',
         'h-8 w-8  border border-black',
       ])}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      {isFlagged ? '🚩' : uncovered && tile.isMine ? '💣' : ''}
-      {uncovered && !tile.isMine && tile.surroundingMines && (
+      {tile.isFlagged ? '🚩' : tile.isRevealed && tile.isMine ? '💣' : ''}
+      {tile.isRevealed && !tile.isMine && tile.surroundingMines && (
         <span className="text-blue-700">{tile.surroundingMines}</span>
       )}
     </button>
@@ -95,23 +91,53 @@ function GameTile({
 }
 
 function App() {
-  const [gameBoard, setGameBoard] = useState<gameTileType[][]>([])
-  // const [gameState, setGameState] = useState('pending') // pending, running, won, lost
-  // const [gameTime, setGameTime] = useState(0)
-  const [dificulty] = useState<dificulty>('beginner')
-  const startGame = () => {
-    // setGameState('running')
-    // setGameTime(0)
-    setGameBoard(createGameBoard(LEVELS[dificulty]))
+  const [gameBoard, setGameBoard] = useState<gameTileType[][]>(
+    createGameBoard(LEVELS.beginner),
+  )
+  function uncoverTile(tile: gameTileType) {
+    setGameBoard((prevBoard) =>
+      prevBoard.map((prevRow) =>
+        prevRow.map((prevTile) => {
+          if (prevTile.row === tile.row && prevTile.col === tile.col) {
+            return { ...prevTile, isRevealed: true }
+          }
+          return prevTile
+        }),
+      ),
+    )
+  }
+  function flagTile(tile: gameTileType) {
+    setGameBoard((prevBoard) =>
+      prevBoard.map((prevRow) =>
+        prevRow.map((prevTile) => {
+          if (prevTile.row === tile.row && prevTile.col === tile.col) {
+            return { ...prevTile, isFlagged: !prevTile.isFlagged }
+          }
+          return prevTile
+        }),
+      ),
+    )
   }
   return (
     <div>
       <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
       <button
         className="my-9 rounded-lg bg-blue-500 p-4 text-white"
-        onClick={startGame}
+        onClick={() => setGameBoard(createGameBoard(LEVELS.beginner))}
       >
-        Start Game
+        Beginner
+      </button>
+      <button
+        className="my-9 rounded-lg bg-blue-500 p-4 text-white"
+        onClick={() => setGameBoard(createGameBoard(LEVELS.intermediate))}
+      >
+        Intermediate
+      </button>
+      <button
+        className="my-9 rounded-lg bg-blue-500 p-4 text-white"
+        onClick={() => setGameBoard(createGameBoard(LEVELS.expert))}
+      >
+        Expert
       </button>
       <div className="flex flex-col">
         {gameBoard.map((row, rowIndex) => (
@@ -120,12 +146,8 @@ function App() {
               <GameTile
                 key={colIndex}
                 tile={tile}
-                onTileClick={() => {
-                  return
-                }}
-                onTileContextMenu={() => {
-                  return
-                }}
+                onTileClick={uncoverTile}
+                onTileContextMenu={flagTile}
               />
             ))}
           </div>
