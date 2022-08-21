@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-// create the classic Windows game Minesweeper in React
+// TODO: rename mineSet to mineCoordinates
 const LEVELS = {
   beginner: {
     rows: 8,
@@ -19,14 +19,19 @@ const LEVELS = {
   },
 }
 
-type gameTileState = 'hidden' | 'visible' | 'flagged' | 'exploded' | string // TODO: this only works because of the string, fix it
+enum TileState {
+  COVERED,
+  UNCOVERED,
+  FLAGGED,
+  EXPLODED,
+}
 
-type gameTileType = {
+type Tile = {
   row: number
   col: number
   surroundingMines: number
   isMine: boolean
-  state: gameTileState
+  state: TileState
 }
 
 function createMineSet(rows: number, cols: number, mines: number) {
@@ -80,7 +85,7 @@ function createGameBoard({
             col,
             surroundingMines: surroundingMines(row, col, mineSet),
             isMine: mineSet.has(`${row},${col}`),
-            state: 'hidden',
+            state: TileState.COVERED,
           }
         })
     })
@@ -91,46 +96,51 @@ function GameTile({
   onTileClick,
   onTileContextMenu,
 }: {
-  tile: gameTileType
-  onTileClick: (row: number, col: number, state: gameTileState) => void
-  onTileContextMenu: (row: number, col: number, state: gameTileState) => void
+  tile: Tile
+  onTileClick: (row: number, col: number, state: TileState) => void
+  onTileContextMenu: (row: number, col: number, state: TileState) => void
 }) {
   const handleClick = () => {
     // only allow clicks on hidden tiles
-    if (tile.state === 'hidden') {
-      onTileClick(tile.row, tile.col, 'revealed')
+    if (tile.state === TileState.COVERED) {
+      onTileClick(tile.row, tile.col, TileState.UNCOVERED)
       if (tile.isMine) {
-        onTileClick(tile.row, tile.col, 'exploded')
+        onTileClick(tile.row, tile.col, TileState.EXPLODED)
+        // reveal all mines
+
+        // TODO: set game state to game over
       }
     }
   }
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     // don't do anything if tile is already revealed
-    if (tile.state === 'revealed') return
+    if (tile.state === TileState.UNCOVERED) return
     onTileContextMenu(
       tile.row,
       tile.col,
-      tile.state === 'flagged' ? 'hidden' : 'flagged',
+      tile.state === TileState.FLAGGED ? TileState.COVERED : TileState.FLAGGED,
     )
   }
   return (
     <button
       className={clsx(
         {
-          'bg-gray-400': tile.state === 'hidden' || tile.state === 'flagged',
-          'bg-gray-200': tile.state === 'revealed',
-          'bg-red-500': tile.state === 'exploded',
+          'bg-gray-400':
+            tile.state === TileState.COVERED ||
+            tile.state === TileState.FLAGGED,
+          'bg-gray-200': tile.state === TileState.UNCOVERED,
+          'bg-red-500': tile.state === TileState.EXPLODED,
         },
         'h-8 w-8  border border-black',
       )}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      {tile.state === 'hidden' && tile.isMine && 'x'}
-      {tile.state === 'flagged' && '🚩'}
-      {tile.state === 'exploded' && '💥'}
-      {tile.state === 'revealed' &&
+      {tile.state === TileState.COVERED && tile.isMine && 'x'}
+      {tile.state === TileState.FLAGGED && '🚩'}
+      {tile.state === TileState.EXPLODED && '💥'}
+      {tile.state === TileState.UNCOVERED &&
         (tile.isMine
           ? '💣'
           : tile.surroundingMines > 0 && (
@@ -141,11 +151,14 @@ function GameTile({
 }
 
 function App() {
-  const [gameBoard, setGameBoard] = useState<gameTileType[][]>(() =>
+  const [gameBoard, setGameBoard] = useState<Tile[][]>(() =>
     createGameBoard(LEVELS.beginner),
   )
+  const [gameState, setGameState] = useState<
+    'pending' | 'playing' | 'game over'
+  >('pending')
   // TODO: combine uncover and flag into one updateTileState function that updates tile.state
-  function updateTileState(row: number, col: number, state: gameTileState) {
+  function updateTileState(row: number, col: number, state: TileState) {
     setGameBoard((prevBoard) => {
       const newBoard = [...prevBoard]
       newBoard[row][col].state = state
