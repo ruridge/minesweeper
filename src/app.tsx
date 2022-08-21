@@ -19,7 +19,7 @@ const LEVELS = {
   },
 }
 
-type gameTileState = 'hidden' | 'visible' | 'flagged' | string // TODO: remove string
+type gameTileState = 'hidden' | 'visible' | 'flagged' | 'exploded' | string // TODO: this only works because of the string, fix it
 
 type gameTileType = {
   row: number
@@ -99,6 +99,9 @@ function GameTile({
     // only allow clicks on hidden tiles
     if (tile.state === 'hidden') {
       onTileClick(tile.row, tile.col, 'revealed')
+      if (tile.isMine) {
+        onTileClick(tile.row, tile.col, 'exploded')
+      }
     }
   }
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -113,25 +116,26 @@ function GameTile({
   }
   return (
     <button
-      className={clsx([
-        tile.state === 'revealed' ? 'bg-gray-200' : 'bg-gray-400',
+      className={clsx(
+        {
+          'bg-gray-400': tile.state === 'hidden' || tile.state === 'flagged',
+          'bg-gray-200': tile.state === 'revealed',
+          'bg-red-500': tile.state === 'exploded',
+        },
         'h-8 w-8  border border-black',
-      ])}
+      )}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      {tile.state === 'hidden' && tile.isMine ? <span>x</span> : ''}
-      {tile.state === 'flagged' && <span className="text-red-500">🚩</span>}
+      {tile.state === 'hidden' && tile.isMine && 'x'}
+      {tile.state === 'flagged' && '🚩'}
+      {tile.state === 'exploded' && '💥'}
       {tile.state === 'revealed' &&
-        (tile.isMine ? (
-          <span className="text-red-500">💣</span>
-        ) : (
-          tile.surroundingMines > 0 && (
-            <span className="text-blue-700">{tile.surroundingMines}</span>
-          )
-        ))}
-
-      {/* {tile.isFlagged ? '🚩' : tile.isRevealed && tile.isMine ? '💣' : ''} */}
+        (tile.isMine
+          ? '💣'
+          : tile.surroundingMines > 0 && (
+              <span className="text-blue-700">{tile.surroundingMines}</span>
+            ))}
     </button>
   )
 }
