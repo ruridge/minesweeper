@@ -21,10 +21,41 @@ const LEVELS = {
 type gameTileType = {
   row: number
   col: number
-  surroundingMines?: number
+  surroundingMines: number
   isMine: boolean
   isRevealed: boolean
   isFlagged: boolean
+  state: 'hidden' | 'revealed' | 'flagged' | string // TODO: remove string
+}
+
+function createMineSet(rows: number, cols: number, mines: number) {
+  const mineSet = new Set<string>()
+  while (mineSet.size < mines) {
+    mineSet.add(
+      `${Math.floor(Math.random() * rows)},${Math.floor(Math.random() * cols)}`,
+    )
+  }
+  console.log(mineSet) // TODO: remove
+  return mineSet
+}
+
+function surroundingMines(row: number, col: number, mineSet: Set<string>) {
+  const surrounding = [
+    [row - 1, col - 1],
+    [row - 1, col],
+    [row - 1, col + 1],
+    [row, col - 1],
+    [row, col + 1],
+    [row + 1, col - 1],
+    [row + 1, col],
+    [row + 1, col + 1],
+  ]
+  return surrounding.reduce((acc, [r, c]) => {
+    if (mineSet.has(`${r},${c}`)) {
+      return acc + 1
+    }
+    return acc
+  }, 0)
 }
 
 function createGameBoard({
@@ -36,6 +67,7 @@ function createGameBoard({
   cols: number
   mines: number
 }) {
+  const mineSet = createMineSet(rows, cols, mines)
   return Array(rows)
     .fill(null)
     .map((_, row) => {
@@ -45,9 +77,11 @@ function createGameBoard({
           return {
             row,
             col,
-            isMine: Math.floor(Math.random() * 2) === 0, // 1 in 2 chance of being a mine for testing
-            isRevealed: false,
-            isFlagged: false,
+            surroundingMines: surroundingMines(row, col, mineSet),
+            isMine: mineSet.has(`${row},${col}`),
+            isRevealed: true, // TODO: remove
+            isFlagged: false, // TODO: remove
+            state: 'revealed',
           }
         })
     })
@@ -82,9 +116,12 @@ function GameTile({
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
+      {/* TODO: replace isFlagged and isRevealed with single tile.state prop */}
       {tile.isFlagged ? '🚩' : tile.isRevealed && tile.isMine ? '💣' : ''}
-      {tile.isRevealed && !tile.isMine && tile.surroundingMines && (
+      {tile.isRevealed && !tile.isMine && tile.surroundingMines > 0 ? (
         <span className="text-blue-700">{tile.surroundingMines}</span>
+      ) : (
+        ''
       )}
     </button>
   )
@@ -94,6 +131,7 @@ function App() {
   const [gameBoard, setGameBoard] = useState<gameTileType[][]>(
     createGameBoard(LEVELS.beginner),
   )
+  // TODO: combine uncover and flag into one updateTileState function that updates tile.state
   function uncoverTile(tile: gameTileType) {
     setGameBoard((prevBoard) =>
       prevBoard.map((prevRow) =>
