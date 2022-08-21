@@ -18,14 +18,15 @@ const LEVELS = {
     mines: 99,
   },
 }
+
+type gameTileState = 'hidden' | 'visible' | 'flagged' | string // TODO: remove string
+
 type gameTileType = {
   row: number
   col: number
   surroundingMines: number
   isMine: boolean
-  isRevealed: boolean
-  isFlagged: boolean
-  state: 'hidden' | 'revealed' | 'flagged' | string // TODO: remove string
+  state: gameTileState
 }
 
 function createMineSet(rows: number, cols: number, mines: number) {
@@ -79,9 +80,7 @@ function createGameBoard({
             col,
             surroundingMines: surroundingMines(row, col, mineSet),
             isMine: mineSet.has(`${row},${col}`),
-            isRevealed: true, // TODO: remove
-            isFlagged: false, // TODO: remove
-            state: 'revealed',
+            state: 'hidden',
           }
         })
     })
@@ -93,36 +92,46 @@ function GameTile({
   onTileContextMenu,
 }: {
   tile: gameTileType
-  onTileClick: (tile: gameTileType) => void
-  onTileContextMenu: (tile: gameTileType) => void
+  onTileClick: (row: number, col: number, state: gameTileState) => void
+  onTileContextMenu: (row: number, col: number, state: gameTileState) => void
 }) {
   const handleClick = () => {
-    // don't do anything if the tile is already flagged or revealed
-    if (tile.isFlagged || tile.isRevealed) return
-    onTileClick(tile)
+    // only allow clicks on hidden tiles
+    if (tile.state === 'hidden') {
+      onTileClick(tile.row, tile.col, 'revealed')
+    }
   }
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     // don't do anything if tile is already revealed
-    if (tile.isRevealed) return
-    onTileContextMenu(tile)
+    if (tile.state === 'revealed') return
+    onTileContextMenu(
+      tile.row,
+      tile.col,
+      tile.state === 'flagged' ? 'hidden' : 'flagged',
+    )
   }
   return (
     <button
       className={clsx([
-        tile.isRevealed ? 'bg-gray-200' : 'bg-gray-300',
+        tile.state === 'revealed' ? 'bg-gray-200' : 'bg-gray-400',
         'h-8 w-8  border border-black',
       ])}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      {/* TODO: replace isFlagged and isRevealed with single tile.state prop */}
-      {tile.isFlagged ? '🚩' : tile.isRevealed && tile.isMine ? '💣' : ''}
-      {tile.isRevealed && !tile.isMine && tile.surroundingMines > 0 ? (
-        <span className="text-blue-700">{tile.surroundingMines}</span>
-      ) : (
-        ''
-      )}
+      {tile.state === 'hidden' && tile.isMine ? <span>x</span> : ''}
+      {tile.state === 'flagged' && <span className="text-red-500">🚩</span>}
+      {tile.state === 'revealed' &&
+        (tile.isMine ? (
+          <span className="text-red-500">💣</span>
+        ) : (
+          tile.surroundingMines > 0 && (
+            <span className="text-blue-700">{tile.surroundingMines}</span>
+          )
+        ))}
+
+      {/* {tile.isFlagged ? '🚩' : tile.isRevealed && tile.isMine ? '💣' : ''} */}
     </button>
   )
 }
@@ -132,30 +141,14 @@ function App() {
     createGameBoard(LEVELS.beginner),
   )
   // TODO: combine uncover and flag into one updateTileState function that updates tile.state
-  function uncoverTile(tile: gameTileType) {
-    setGameBoard((prevBoard) =>
-      prevBoard.map((prevRow) =>
-        prevRow.map((prevTile) => {
-          if (prevTile.row === tile.row && prevTile.col === tile.col) {
-            return { ...prevTile, isRevealed: true }
-          }
-          return prevTile
-        }),
-      ),
-    )
+  function updateTileState(row: number, col: number, state: gameTileState) {
+    setGameBoard((prevBoard) => {
+      const newBoard = [...prevBoard]
+      newBoard[row][col].state = state
+      return newBoard
+    })
   }
-  function flagTile(tile: gameTileType) {
-    setGameBoard((prevBoard) =>
-      prevBoard.map((prevRow) =>
-        prevRow.map((prevTile) => {
-          if (prevTile.row === tile.row && prevTile.col === tile.col) {
-            return { ...prevTile, isFlagged: !prevTile.isFlagged }
-          }
-          return prevTile
-        }),
-      ),
-    )
-  }
+
   return (
     <div>
       <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
@@ -184,8 +177,8 @@ function App() {
               <GameTile
                 key={`${rowIndex},${colIndex}`}
                 tile={tile}
-                onTileClick={uncoverTile}
-                onTileContextMenu={flagTile}
+                onTileClick={updateTileState}
+                onTileContextMenu={updateTileState}
               />
             ))}
           </div>
