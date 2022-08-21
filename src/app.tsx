@@ -128,7 +128,7 @@ function GameTile({
 }
 
 function App() {
-  const [gameBoard, setGameBoard] = useState<gameTileType[][]>(
+  const [gameBoard, setGameBoard] = useState<gameTileType[][]>(() =>
     createGameBoard(LEVELS.beginner),
   )
   // TODO: combine uncover and flag into one updateTileState function that updates tile.state
