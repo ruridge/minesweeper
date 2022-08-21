@@ -95,20 +95,49 @@ function GameTile({
   tile,
   onTileClick,
   onTileContextMenu,
+  boardRows,
+  boardCols,
 }: {
   tile: Tile
   onTileClick: (row: number, col: number, state: TileState) => void
   onTileContextMenu: (row: number, col: number, state: TileState) => void
+  boardRows: number
+  boardCols: number
 }) {
   const handleClick = () => {
     // only allow clicks on hidden tiles
     if (tile.state === TileState.COVERED) {
-      onTileClick(tile.row, tile.col, TileState.UNCOVERED)
       if (tile.isMine) {
         onTileClick(tile.row, tile.col, TileState.EXPLODED)
         // reveal all mines
 
         // TODO: set game state to game over
+        return null // if we hit a mine, don't do anything else the game is over
+      }
+      onTileClick(tile.row, tile.col, TileState.UNCOVERED)
+      if (tile.surroundingMines === 0) {
+        // TODO: recursively uncover surrounding tiles
+        // get all surrounding tiles
+        const surrounding = [
+          [tile.row - 1, tile.col - 1],
+          [tile.row - 1, tile.col],
+          [tile.row - 1, tile.col + 1],
+          [tile.row, tile.col - 1],
+          [tile.row, tile.col + 1],
+          [tile.row + 1, tile.col - 1],
+          [tile.row + 1, tile.col],
+          [tile.row + 1, tile.col + 1],
+        ]
+        // remove surrounding tiles that are out of bounds
+        const validSurrounding = surrounding.filter(
+          ([row, col]) =>
+            row >= 0 && row < boardRows && col >= 0 && col < boardCols,
+        )
+        console.log(validSurrounding)
+        // if they are covered, uncover them
+        for (const [row, col] of validSurrounding) {
+          onTileClick(row, col, TileState.UNCOVERED)
+        }
       }
     }
   }
@@ -196,6 +225,8 @@ function App() {
                 tile={tile}
                 onTileClick={updateTileState}
                 onTileContextMenu={updateTileState}
+                boardRows={gameBoard.length}
+                boardCols={gameBoard[0].length}
               />
             ))}
           </div>
