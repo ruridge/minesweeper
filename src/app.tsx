@@ -179,7 +179,7 @@ function App() {
       </button>
       <div className="flex flex-col">
         {gameBoard.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex flex-row">
+          <div key={rowIndex} className="flex flex-row justify-center">
             {row.map((tile, colIndex) => (
               <GameTile
                 key={colIndex}
