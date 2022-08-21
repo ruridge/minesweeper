@@ -182,7 +182,7 @@ function App() {
           <div key={rowIndex} className="flex flex-row justify-center">
             {row.map((tile, colIndex) => (
               <GameTile
-                key={colIndex}
+                key={`${rowIndex},${colIndex}`}
                 tile={tile}
                 onTileClick={uncoverTile}
                 onTileContextMenu={flagTile}
