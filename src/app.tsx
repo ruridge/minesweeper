@@ -91,42 +91,6 @@ function createGameBoard({
         })
     })
 }
-function GameTile({
-  tile,
-  onTileClick,
-  onTileContextMenu,
-}: {
-  tile: Tile
-  onTileClick: (e: React.MouseEvent, tile: Tile) => void
-  onTileContextMenu: (e: React.MouseEvent, tile: Tile) => void
-}) {
-  return (
-    <button
-      className={clsx(
-        {
-          'bg-gray-400':
-            tile.state === TileState.COVERED ||
-            tile.state === TileState.FLAGGED,
-          'bg-gray-200': tile.state === TileState.UNCOVERED,
-          'bg-red-500': tile.state === TileState.EXPLODED,
-        },
-        'h-8 w-8  border border-black',
-      )}
-      onClick={(e) => onTileClick(e, tile)}
-      onContextMenu={(e) => onTileContextMenu(e, tile)}
-    >
-      {tile.state === TileState.COVERED && tile.isMine && 'x'}
-      {tile.state === TileState.FLAGGED && '🚩'}
-      {tile.state === TileState.EXPLODED && '💥'}
-      {tile.state === TileState.UNCOVERED &&
-        (tile.isMine
-          ? '💣'
-          : tile.surroundingMines > 0 && (
-              <span className="text-blue-700">{tile.surroundingMines}</span>
-            ))}
-    </button>
-  )
-}
 
 function getTilesToUpdate(row: number, col: number, board: Tile[][]): Tile[][] {
   // this function is recursive and returns the new board state after finding all connecting tiles with 0 surrounding mines and revealing them and their surrounding tiles
@@ -235,6 +199,43 @@ function App() {
         ))}
       </div>
     </div>
+  )
+}
+
+function GameTile({
+  tile,
+  onTileClick,
+  onTileContextMenu,
+}: {
+  tile: Tile
+  onTileClick: (e: React.MouseEvent, tile: Tile) => void
+  onTileContextMenu: (e: React.MouseEvent, tile: Tile) => void
+}) {
+  return (
+    <button
+      className={clsx(
+        {
+          'bg-gray-400':
+            tile.state === TileState.COVERED ||
+            tile.state === TileState.FLAGGED,
+          'bg-gray-200': tile.state === TileState.UNCOVERED,
+          'bg-red-500': tile.state === TileState.EXPLODED,
+        },
+        'h-8 w-8  border border-black',
+      )}
+      onClick={(e) => onTileClick(e, tile)}
+      onContextMenu={(e) => onTileContextMenu(e, tile)}
+    >
+      {tile.state === TileState.COVERED && tile.isMine && 'x'}
+      {tile.state === TileState.FLAGGED && '🚩'}
+      {tile.state === TileState.EXPLODED && '💥'}
+      {tile.state === TileState.UNCOVERED &&
+        (tile.isMine
+          ? '💣'
+          : tile.surroundingMines > 0 && (
+              <span className="text-blue-700">{tile.surroundingMines}</span>
+            ))}
+    </button>
   )
 }
 
