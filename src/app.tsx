@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
+import clone from 'just-clone'
 // TODO: rename mineSet to mineCoordinates
-// TODO: Clicking a square with no adjacent mines clears that square and clicks all adjacent squares.
 const LEVELS = {
   beginner: {
     rows: 8,
@@ -128,6 +128,31 @@ function GameTile({
   )
 }
 
+function getTilesToUpdate(row: number, col: number, board: Tile[][]): Tile[][] {
+  // this function is recursive and returns the new board state after finding all connecting tiles with 0 surrounding mines and revealing them and their surrounding tiles
+  const surrounding = [
+    [row - 1, col - 1],
+    [row - 1, col],
+    [row - 1, col + 1],
+    [row, col - 1],
+    [row, col + 1],
+    [row + 1, col - 1],
+    [row + 1, col],
+    [row + 1, col + 1],
+  ]
+  surrounding.forEach(([r, c]) => {
+    if (r >= 0 && r < board.length && c >= 0 && c < board[0].length) {
+      if (board[r][c].state === TileState.COVERED) {
+        board[r][c].state = TileState.UNCOVERED
+        if (board[r][c].surroundingMines === 0) {
+          getTilesToUpdate(r, c, board)
+        }
+      }
+    }
+  })
+  return board
+}
+
 function App() {
   const [gameBoard, setGameBoard] = useState<Tile[][]>(() =>
     createGameBoard(LEVELS.beginner),
@@ -144,24 +169,6 @@ function App() {
     })
   }
 
-  function uncoverSurroundingTiles(row: number, col: number) {
-    const surrounding = [
-      [row - 1, col - 1],
-      [row - 1, col],
-      [row - 1, col + 1],
-      [row, col - 1],
-      [row, col + 1],
-      [row + 1, col - 1],
-      [row + 1, col],
-      [row + 1, col + 1],
-    ]
-    surrounding.forEach(([r, c]) => {
-      if (r >= 0 && r < gameBoard.length && c >= 0 && c < gameBoard[r].length) {
-        updateTileState(r, c, TileState.UNCOVERED)
-      }
-    })
-  }
-
   const handleClick = (e: React.MouseEvent, tile: Tile) => {
     // only allow clicks on covered tiles
     if (tile.state !== TileState.COVERED) return
@@ -175,8 +182,11 @@ function App() {
     }
     updateTileState(tile.row, tile.col, TileState.UNCOVERED)
     if (tile.surroundingMines === 0) {
-      // TODO: recursively uncover surrounding tiles
-      uncoverSurroundingTiles(tile.row, tile.col)
+      // clone of the board state to prevent mutation of react state
+      const board = clone(gameBoard)
+      // get the new board state after finding all surrounding tiles with 0 surrounding mines and uncovering them
+      const updates = getTilesToUpdate(tile.row, tile.col, board)
+      setGameBoard(updates)
     }
   }
   const handleContextMenu = (e: React.MouseEvent, tile: Tile) => {
