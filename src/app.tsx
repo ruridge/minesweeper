@@ -91,7 +91,6 @@ function createGameBoard({
         })
     })
 }
-
 function GameTile({
   tile,
   onTileClick,
@@ -136,7 +135,7 @@ function App() {
   const [gameState, setGameState] = useState<
     'pending' | 'playing' | 'game over'
   >('pending')
-  // TODO: combine uncover and flag into one updateTileState function that updates tile.state
+
   function updateTileState(row: number, col: number, state: TileState) {
     setGameBoard((prevBoard) => {
       const newBoard = [...prevBoard]
@@ -144,44 +143,40 @@ function App() {
       return newBoard
     })
   }
-  const handleClick = (e: React.MouseEvent, tile: Tile) => {
-    // only allow clicks on hidden tiles
-    if (tile.state === TileState.COVERED) {
-      if (tile.isMine) {
-        updateTileState(tile.row, tile.col, TileState.EXPLODED)
-        // reveal all mines
 
-        // TODO: set game state to game over
-        return null // if we hit a mine, don't do anything else the game is over
+  function uncoverSurroundingTiles(row: number, col: number) {
+    const surrounding = [
+      [row - 1, col - 1],
+      [row - 1, col],
+      [row - 1, col + 1],
+      [row, col - 1],
+      [row, col + 1],
+      [row + 1, col - 1],
+      [row + 1, col],
+      [row + 1, col + 1],
+    ]
+    surrounding.forEach(([r, c]) => {
+      if (r >= 0 && r < gameBoard.length && c >= 0 && c < gameBoard[r].length) {
+        updateTileState(r, c, TileState.UNCOVERED)
       }
-      updateTileState(tile.row, tile.col, TileState.UNCOVERED)
-      if (tile.surroundingMines === 0) {
-        // TODO: recursively uncover surrounding tiles
-        // get all surrounding tiles
-        const surrounding = [
-          [tile.row - 1, tile.col - 1],
-          [tile.row - 1, tile.col],
-          [tile.row - 1, tile.col + 1],
-          [tile.row, tile.col - 1],
-          [tile.row, tile.col + 1],
-          [tile.row + 1, tile.col - 1],
-          [tile.row + 1, tile.col],
-          [tile.row + 1, tile.col + 1],
-        ]
-        // remove surrounding tiles that are out of bounds
-        const validSurrounding = surrounding.filter(
-          ([row, col]) =>
-            row >= 0 &&
-            row < gameBoard.length &&
-            col >= 0 &&
-            col < gameBoard[0].length,
-        )
-        console.log(validSurrounding)
-        // if they are covered, uncover them
-        for (const [row, col] of validSurrounding) {
-          updateTileState(row, col, TileState.UNCOVERED)
-        }
-      }
+    })
+  }
+
+  const handleClick = (e: React.MouseEvent, tile: Tile) => {
+    // only allow clicks on covered tiles
+    if (tile.state !== TileState.COVERED) return
+    // TODO: if this is the first click (uncovered tiles == 0), start the game/timer
+    if (tile.isMine) {
+      updateTileState(tile.row, tile.col, TileState.EXPLODED)
+      // reveal all mines
+
+      // TODO: set game state to game over
+      return // if we hit a mine, don't do anything else, the game is over
+    }
+    updateTileState(tile.row, tile.col, TileState.UNCOVERED)
+    if (tile.surroundingMines === 0) {
+      // TODO: recursively uncover surrounding tiles
+      uncoverSurroundingTiles(tile.row, tile.col)
     }
   }
   const handleContextMenu = (e: React.MouseEvent, tile: Tile) => {
