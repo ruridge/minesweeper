@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import clone from 'just-clone'
+// not currently in use
 const LEVELS = {
   beginner: {
     rows: 8,

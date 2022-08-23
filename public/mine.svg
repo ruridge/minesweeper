@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.com/svgjs" width="455" height="454"><svg width="455" height="454" viewBox="0 0 455 454" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="228" cy="227" r="165" fill="#D9D9D9"></circle>
+<rect x="203" width="49" height="454" rx="24.5" fill="#D9D9D9"></rect>
+<rect x="84.3109" y="404.837" width="49" height="454" rx="24.5" transform="rotate(-135 84.3109 404.837)" fill="#D9D9D9"></rect>
+<rect x="49.6626" y="83.8109" width="49" height="454" rx="24.5" transform="rotate(-45 49.6626 83.8109)" fill="#D9D9D9"></rect>
+<rect x="0.5" y="251.5" width="49" height="454" rx="24.5" transform="rotate(-90 0.5 251.5)" fill="#D9D9D9"></rect>
+</svg><style>@media (prefers-color-scheme: light) { :root { filter: contrast(1) brightness(0.4); } }
+@media (prefers-color-scheme: dark) { :root { filter: contrast(1) brightness(1.1); } }
+</style></svg>
