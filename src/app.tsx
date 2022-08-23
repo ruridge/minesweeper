@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import clone from 'just-clone'
-// TODO: rename mineSet to mineCoordinates
 const LEVELS = {
   beginner: {
     rows: 8,
@@ -18,6 +17,13 @@ const LEVELS = {
     cols: 30,
     mines: 99,
   },
+}
+
+enum GameState {
+  NEW,
+  PLAYING,
+  WON,
+  LOST,
 }
 
 enum TileState {
@@ -121,9 +127,37 @@ function App() {
   const [gameBoard, setGameBoard] = useState<Tile[][]>(() =>
     createGameBoard(LEVELS.beginner),
   )
-  const [gameState, setGameState] = useState<
-    'pending' | 'playing' | 'game over'
-  >('pending')
+  const [gameDificulty, setGameDificulty] = useState(LEVELS.beginner)
+  const [gameState, setGameState] = useState<GameState>(GameState.NEW)
+  const [flagsPlaced, setFlagsPlaced] = useState(0)
+  const [time, setTime] = useState(0)
+
+  const timerRef = useRef<number>()
+  let mineCoordinates: Set<string>
+
+  function resetBoard() {
+    setGameBoard(createGameBoard(gameDificulty))
+    setGameState(GameState.NEW)
+    setFlagsPlaced(0)
+    clearInterval(timerRef.current)
+    setTime(0)
+  }
+
+  function startGame() {
+    // setGameBoard(createGameBoard(gameDificulty))
+    setGameState(GameState.PLAYING)
+    setFlagsPlaced(0)
+    clearInterval(timerRef.current)
+    setTime(0)
+    timerRef.current = setInterval(() => {
+      setTime((curr) => curr + 1)
+    }, 1000)
+  }
+
+  function gameOver() {
+    setGameState(GameState.LOST)
+    clearInterval(timerRef.current)
+  }
 
   function updateTileState(row: number, col: number, state: TileState) {
     setGameBoard((prevBoard) => {
@@ -133,17 +167,34 @@ function App() {
     })
   }
 
-  const handleClick = (e: React.MouseEvent, tile: Tile) => {
+  // TODO: this is unfinished
+  function revealMines() {
+    setGameBoard((prevBoard) => {
+      const newBoard = [...prevBoard]
+      mineCoordinates.forEach((coord) => {
+        const [r, c] = coord.split(',').map(Number)
+        newBoard[r][c].state = TileState.UNCOVERED
+      })
+      return newBoard
+    })
+  }
+
+  function handleClick(e: React.MouseEvent, tile: Tile) {
+    // if the game is over, do nothing
+    if (gameState === GameState.LOST || gameState == GameState.WON) return
     // only allow clicks on covered tiles
     if (tile.state !== TileState.COVERED) return
-    // TODO: if this is the first click (uncovered tiles == 0), start the game/timer
+    if (gameState === GameState.NEW) {
+      startGame()
+    }
     if (tile.isMine) {
+      gameOver()
+      // TODO: reveal mines
+      // revealMines()
       updateTileState(tile.row, tile.col, TileState.EXPLODED)
-      // reveal all mines
-
-      // TODO: set game state to game over
       return // if we hit a mine, don't do anything else, the game is over
     }
+    // uncover tile(s)
     updateTileState(tile.row, tile.col, TileState.UNCOVERED)
     if (tile.surroundingMines === 0) {
       // clone of the board state to prevent mutation of react state
@@ -153,8 +204,11 @@ function App() {
       setGameBoard(updates)
     }
   }
-  const handleContextMenu = (e: React.MouseEvent, tile: Tile) => {
+
+  function handleContextMenu(e: React.MouseEvent, tile: Tile) {
     e.preventDefault()
+    // if the game is over, do nothing
+    if (gameState === GameState.LOST || gameState == GameState.WON) return
     // don't do anything if tile is already revealed
     if (tile.state === TileState.UNCOVERED) return
     updateTileState(
@@ -166,24 +220,21 @@ function App() {
   return (
     <div>
       <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
-      <button
-        className="my-9 rounded-lg bg-blue-500 p-4 text-white"
-        onClick={() => setGameBoard(createGameBoard(LEVELS.beginner))}
-      >
-        Beginner
-      </button>
-      <button
-        className="my-9 rounded-lg bg-blue-500 p-4 text-white"
-        onClick={() => setGameBoard(createGameBoard(LEVELS.intermediate))}
-      >
-        Intermediate
-      </button>
-      <button
-        className="my-9 rounded-lg bg-blue-500 p-4 text-white"
-        onClick={() => setGameBoard(createGameBoard(LEVELS.expert))}
-      >
-        Expert
-      </button>
+      <div>{JSON.stringify(gameDificulty)}</div>
+      <div>{gameState === GameState.NEW && 'new'}</div>
+      <div>{gameState === GameState.PLAYING && 'playing'}</div>
+      <div>{gameState === GameState.WON && 'won'}</div>
+      <div>{gameState === GameState.LOST && 'lost'}</div>
+      <div className="flex justify-between">
+        <div className="w-12">flags:{flagsPlaced}</div>
+        <button className="text-6xl" onClick={resetBoard}>
+          {gameState === GameState.NEW && '😀'}
+          {gameState === GameState.PLAYING && '🥺'}
+          {gameState === GameState.WON && '🥳'}
+          {gameState === GameState.LOST && '😭'}
+        </button>
+        <div className="w-12">time:{time}</div>
+      </div>
       <div className="flex flex-col">
         {gameBoard.map((row, rowIndex) => (
           <div key={rowIndex} className="flex flex-row justify-center">
