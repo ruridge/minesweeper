@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import clone from 'just-clone'
 const LEVELS = {
@@ -48,7 +48,6 @@ function createMineSet(rows: number, cols: number, mines: number) {
       `${Math.floor(Math.random() * rows)},${Math.floor(Math.random() * cols)}`,
     )
   }
-  console.log(mineSet) // TODO: remove
   return mineSet
 }
 
@@ -69,33 +68,6 @@ function surroundingMines(row: number, col: number, mineSet: Set<string>) {
     }
     return acc
   }, 0)
-}
-
-function createGameBoard({
-  rows,
-  cols,
-  mines,
-}: {
-  rows: number
-  cols: number
-  mines: number
-}) {
-  const mineSet = createMineSet(rows, cols, mines)
-  return Array(rows)
-    .fill(null)
-    .map((_, row) => {
-      return Array(cols)
-        .fill(null)
-        .map((_, col) => {
-          return {
-            row,
-            col,
-            surroundingMines: surroundingMines(row, col, mineSet),
-            isMine: mineSet.has(`${row},${col}`),
-            state: TileState.COVERED,
-          }
-        })
-    })
 }
 
 function getTilesToUpdate(row: number, col: number, board: Tile[][]): Tile[][] {
@@ -123,20 +95,58 @@ function getTilesToUpdate(row: number, col: number, board: Tile[][]): Tile[][] {
   return board
 }
 
+function createGameBoard({
+  rows,
+  cols,
+  mineCoords,
+}: {
+  rows: number
+  cols: number
+  mineCoords: Set<string>
+}) {
+  return Array(rows)
+    .fill(null)
+    .map((_, row) => {
+      return Array(cols)
+        .fill(null)
+        .map((_, col) => {
+          return {
+            row,
+            col,
+            surroundingMines: surroundingMines(row, col, mineCoords),
+            isMine: mineCoords.has(`${row},${col}`),
+            state: TileState.COVERED,
+          }
+        })
+    })
+}
+
+const initialMineCoords = createMineSet(8, 8, 10)
+
+// setGameBoard(rows, cols, mines): [Tile[][], Set<string>] {
+// what if the "gameBoard" is actually an object with the board and the mineCoords?
+
 function App() {
   const [gameBoard, setGameBoard] = useState<Tile[][]>(() =>
-    createGameBoard(LEVELS.beginner),
+    createGameBoard({ rows: 8, cols: 8, mineCoords: initialMineCoords }),
   )
-  const [gameDificulty, setGameDificulty] = useState(LEVELS.beginner)
+  const [mineCoordinates, setMineCoordnates] =
+    useState<Set<string>>(initialMineCoords)
+
   const [gameState, setGameState] = useState<GameState>(GameState.NEW)
   const [flagsPlaced, setFlagsPlaced] = useState(0)
   const [time, setTime] = useState(0)
 
   const timerRef = useRef<number>()
-  let mineCoordinates: Set<string>
+
+  useEffect(() => {
+    setGameBoard(
+      createGameBoard({ rows: 8, cols: 8, mineCoords: mineCoordinates }),
+    )
+  }, [mineCoordinates])
 
   function resetBoard() {
-    setGameBoard(createGameBoard(gameDificulty))
+    setMineCoordnates(createMineSet(8, 8, 10))
     setGameState(GameState.NEW)
     setFlagsPlaced(0)
     clearInterval(timerRef.current)
@@ -144,7 +154,6 @@ function App() {
   }
 
   function startGame() {
-    // setGameBoard(createGameBoard(gameDificulty))
     setGameState(GameState.PLAYING)
     setFlagsPlaced(0)
     clearInterval(timerRef.current)
@@ -179,15 +188,27 @@ function App() {
     })
   }
 
+  function reconfigureBoard(row: number, col: number) {
+    resetBoard()
+    // if row, col is mine: reconfigure again
+    if (mineCoordinates.has(`${row},${col}`)) {
+      reconfigureBoard(row, col)
+    }
+  }
+
   function handleClick(e: React.MouseEvent, tile: Tile) {
     // if the game is over, do nothing
     if (gameState === GameState.LOST || gameState == GameState.WON) return
     // only allow clicks on covered tiles
     if (tile.state !== TileState.COVERED) return
     if (gameState === GameState.NEW) {
+      if (tile.isMine) {
+        // TODO: ran into a race condition between states, need to rethink the seperation of gameBoard and mineCoords
+        // reconfigureBoard(tile.col, tile.row)
+      }
       startGame()
     }
-    if (tile.isMine) {
+    if (mineCoordinates.has(`${tile.row},${tile.col}`)) {
       gameOver()
       // TODO: reveal mines
       // revealMines()
@@ -220,34 +241,35 @@ function App() {
   return (
     <div>
       <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
-      <div>{JSON.stringify(gameDificulty)}</div>
-      <div>{gameState === GameState.NEW && 'new'}</div>
-      <div>{gameState === GameState.PLAYING && 'playing'}</div>
-      <div>{gameState === GameState.WON && 'won'}</div>
-      <div>{gameState === GameState.LOST && 'lost'}</div>
-      <div className="flex justify-between">
-        <div className="w-12">flags:{flagsPlaced}</div>
-        <button className="text-6xl" onClick={resetBoard}>
-          {gameState === GameState.NEW && '😀'}
-          {gameState === GameState.PLAYING && '🥺'}
-          {gameState === GameState.WON && '🥳'}
-          {gameState === GameState.LOST && '😭'}
-        </button>
-        <div className="w-12">time:{time}</div>
-      </div>
-      <div className="flex flex-col">
-        {gameBoard.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex flex-row justify-center">
-            {row.map((tile, colIndex) => (
-              <GameTile
-                key={`${rowIndex},${colIndex}`}
-                tile={tile}
-                onTileClick={handleClick}
-                onTileContextMenu={handleContextMenu}
-              />
-            ))}
-          </div>
-        ))}
+      <div className="inline-block">
+        <div>{gameState === GameState.NEW && 'new'}</div>
+        <div>{gameState === GameState.PLAYING && 'playing'}</div>
+        <div>{gameState === GameState.WON && 'won'}</div>
+        <div>{gameState === GameState.LOST && 'lost'}</div>
+        <div className="flex justify-between">
+          <div className="w-16">{/*flags:{flagsPlaced}*/}</div>
+          <button className="text-6xl" onClick={resetBoard}>
+            {gameState === GameState.NEW && '😀'}
+            {gameState === GameState.PLAYING && '🥺'}
+            {gameState === GameState.WON && '🥳'}
+            {gameState === GameState.LOST && '😭'}
+          </button>
+          <div className="w-16 text-right">{time}</div>
+        </div>
+        <div className="flex flex-col">
+          {gameBoard.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex flex-row justify-center">
+              {row.map((tile, colIndex) => (
+                <GameTile
+                  key={`${rowIndex},${colIndex}`}
+                  tile={tile}
+                  onTileClick={handleClick}
+                  onTileContextMenu={handleContextMenu}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -277,7 +299,7 @@ function GameTile({
       onClick={(e) => onTileClick(e, tile)}
       onContextMenu={(e) => onTileContextMenu(e, tile)}
     >
-      {tile.state === TileState.COVERED && tile.isMine && 'x'}
+      {/* {tile.state === TileState.COVERED && tile.isMine && 'x'} */}
       {tile.state === TileState.FLAGGED && '🚩'}
       {tile.state === TileState.EXPLODED && '💥'}
       {tile.state === TileState.UNCOVERED &&
