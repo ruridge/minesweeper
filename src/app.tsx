@@ -181,7 +181,25 @@ function reducer(state: State, action: Action): State {
     case ActionType.UNCOVER:
       return state
     case ActionType.TOGGLE_FLAG:
-      return state
+      return {
+        ...state,
+        board: state.board.map((row, rowIndex) => {
+          return row.map((tile, colIndex) => {
+            if (
+              rowIndex === action.coords?.row &&
+              colIndex === action.coords?.col
+            ) {
+              if (tile.state === TileState.FLAGGED) {
+                return { ...tile, state: TileState.COVERED }
+              } else {
+                return { ...tile, state: TileState.FLAGGED }
+              }
+            } else {
+              return tile
+            }
+          })
+        }),
+      }
     default:
       console.error('unknown action', action)
       return state
@@ -301,18 +319,15 @@ function App() {
     // }
   }
 
-  function handleContextMenu(e: React.MouseEvent, tile: Tile) {
+  function handleContextMenu(e: React.MouseEvent, coords: Coords) {
     e.preventDefault()
     // if the game is over, do nothing
     if (state.gameState === GameState.LOST || state.gameState == GameState.WON)
       return
+    const tile = state.board[coords.row][coords.col]
     // don't do anything if tile is already revealed
     if (tile.state === TileState.UNCOVERED) return
-    updateTileState(
-      tile.row,
-      tile.col,
-      tile.state === TileState.FLAGGED ? TileState.COVERED : TileState.FLAGGED,
-    )
+    dispatch({ type: ActionType.TOGGLE_FLAG, coords })
   }
   return (
     <div>
@@ -323,7 +338,7 @@ function App() {
         <div>{state.gameState === GameState.WON && 'won'}</div>
         <div>{state.gameState === GameState.LOST && 'lost'}</div>
         <div className="flex justify-between">
-          <div className="w-16">{/*flags:{flagsPlaced}*/}</div>
+          <div className="w-16 text-left">{state.flagCount}</div>
           <button className="text-6xl" onClick={resetBoard}>
             {state.gameState === GameState.NEW && '😀'}
             {state.gameState === GameState.PLAYING && '🥺'}
