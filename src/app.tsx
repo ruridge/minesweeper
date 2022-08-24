@@ -256,7 +256,9 @@ function App() {
         <div>{state.gameState === GameState.WON && 'won'}</div>
         <div>{state.gameState === GameState.LOST && 'lost'}</div>
         <div className="flex justify-between">
-          <div className="w-16 text-left">{state.flagCount}</div>
+          <div className="w-16 text-left">
+            {state.mineCount - state.flagCount}
+          </div>
           <button className="text-6xl" onClick={resetBoard}>
             {state.gameState === GameState.NEW && '😀'}
             {state.gameState === GameState.PLAYING && '🥺'}
