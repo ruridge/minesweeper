@@ -1,5 +1,6 @@
 import { useReducer, useRef, useState } from 'react'
 import { clsx } from 'clsx'
+import clone from 'just-clone'
 
 const LEVELS = {
   beginner: {
@@ -173,13 +174,25 @@ function initState(action?: Action): State {
     // mineCoords,
   }
 }
+function updateBoard(prevBoard: Tile[][], coords: Coords) {
+  const newBoard = clone(prevBoard)
+  newBoard[coords.row][coords.col].state = TileState.UNCOVERED
+  return newBoard
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case ActionType.RESTART:
       return initState()
     case ActionType.UNCOVER:
-      return state
+      return {
+        ...state,
+        board:
+          action.coords != null
+            ? updateBoard(state.board, action.coords)
+            : state.board,
+        uncoveredCellCount: state.uncoveredCellCount + 1,
+      }
     case ActionType.TOGGLE_FLAG:
       return {
         ...state,
@@ -301,30 +314,14 @@ function App() {
     clearInterval(timerRef.current)
   }
 
-  function updateTileState(row: number, col: number, state: TileState) {
-    // setGameBoard((prevBoard) => {
-    //   const newBoard = [...prevBoard]
-    //   newBoard[row][col].state = state
-    //   return newBoard
-    // })
-  }
-
-  function handleClick(e: React.MouseEvent, tile: Tile) {
-    // setCurrentClick([tile.row, tile.col])
-    // // if the game is over, do nothing
-    // if (gameState === GameState.LOST || gameState == GameState.WON) return
-    // // only allow clicks on covered tiles
-    // if (tile.state !== TileState.COVERED) return
-    // // uncover tile(s)
-    // updateTileState(tile.row, tile.col, TileState.UNCOVERED)
-    // setCurrentSurroundingMines(tile.surroundingMines)
-    // if (tile.surroundingMines === 0) {
-    //   // clone of the board state to prevent mutation of react state
-    //   const board = clone(gameBoard)
-    //   // get the new board state after finding all surrounding tiles with 0 surrounding mines and uncovering them
-    //   const updates = getTilesToUpdate(tile.row, tile.col, board)
-    //   setGameBoard(updates)
-    // }
+  function handleClick(e: React.MouseEvent, coords: Coords) {
+    // if the game is over, do nothing
+    if (state.gameState === GameState.LOST || state.gameState == GameState.WON)
+      return
+    // only allow clicks on covered tiles
+    const tile = state.board[coords.row][coords.col]
+    if (tile.state !== TileState.COVERED) return
+    dispatch({ type: ActionType.UNCOVER, coords })
   }
 
   function handleContextMenu(e: React.MouseEvent, coords: Coords) {
