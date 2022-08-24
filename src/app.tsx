@@ -1,3 +1,17 @@
+/*
+# TODO:
+  - [x] timer
+  - [ ] mine counter
+  - [x] reset game
+  - [x] flagging a tile
+  - [x] clicking on a tile, revealing it if it's not flagged
+  - [x] display number of surrounding mines on an uncovered tile
+  - [ ] recursively uncovering all tiles
+  - [ ] prevent first click from being a mine
+  - [ ] mine counter
+  - [ ] win state
+*/
+
 import { useReducer, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import clone from 'just-clone'
@@ -52,20 +66,6 @@ function createMineSet(rows: number, cols: number, mines: number) {
   return mineSet
 }
 
-function createMineSetExcluding(
-  rows: number,
-  cols: number,
-  mines: number,
-  exclude: string,
-): Set<string> {
-  const mineSet = createMineSet(rows, cols, mines)
-  console.log('creating unique mineSet', mineSet)
-  if (mineSet.has(exclude)) {
-    return createMineSetExcluding(rows, cols, mines, exclude)
-  }
-  return mineSet
-}
-
 function surroundingMines(row: number, col: number, mineSet: Set<string>) {
   const surrounding = [
     [row - 1, col - 1],
@@ -83,31 +83,6 @@ function surroundingMines(row: number, col: number, mineSet: Set<string>) {
     }
     return acc
   }, 0)
-}
-
-function getTilesToUpdate(row: number, col: number, board: Tile[][]): Tile[][] {
-  // this function is recursive and returns the new board state after finding all connecting tiles with 0 surrounding mines and revealing them and their surrounding tiles
-  const surrounding = [
-    [row - 1, col - 1],
-    [row - 1, col],
-    [row - 1, col + 1],
-    [row, col - 1],
-    [row, col + 1],
-    [row + 1, col - 1],
-    [row + 1, col],
-    [row + 1, col + 1],
-  ]
-  surrounding.forEach(([r, c]) => {
-    if (r >= 0 && r < board.length && c >= 0 && c < board[0].length) {
-      if (board[r][c].state === TileState.COVERED) {
-        board[r][c].state = TileState.UNCOVERED
-        if (board[r][c].surroundingMines === 0) {
-          getTilesToUpdate(r, c, board)
-        }
-      }
-    }
-  })
-  return board
 }
 
 function createGameBoard({
@@ -171,7 +146,6 @@ function initState(action?: Action): State {
     mineCount: mineCoords.size,
     flagCount: 0,
     uncoveredCellCount: 0,
-    // mineCoords,
   }
 }
 function updateBoard(prevBoard: Tile[][], coords: Coords) {
@@ -192,6 +166,7 @@ function reducer(state: State, action: Action): State {
             ? updateBoard(state.board, action.coords)
             : state.board,
         uncoveredCellCount: state.uncoveredCellCount + 1,
+        gameState: GameState.PLAYING,
       }
     case ActionType.TOGGLE_FLAG:
       return {
@@ -228,7 +203,6 @@ function reducer(state: State, action: Action): State {
 }
 
 function App() {
-  // const [gameState, setGameState] = useReducer(reducer, GameState.NEW)
   const [state, dispatch] = useReducer(
     reducer,
     { type: ActionType.RESTART },
@@ -239,85 +213,24 @@ function App() {
 
   const timerRef = useRef<number>()
 
-  // useEffect(() => {
-  //   setGameBoard(
-  //     createGameBoard({ rows: 8, cols: 8, mineCoords: mineCoordinates }),
-  //   )
-  // }, [mineCoordinates])
-
-  // useEffect(() => {
-  //   if (currentClick === null) return
-  //   const tile = gameBoard[currentClick[0]][currentClick[1]]
-  //   // if the game is over do nothing
-  //   if (gameState === GameState.LOST || gameState == GameState.WON) return
-  //   // only allow clicks on covered tiles
-  //   if (tile.state !== TileState.COVERED) return
-  //   if (gameState === GameState.NEW) {
-  //     if (tile.isMine) {
-  //       setMineCoordnates(
-  //         createMineSetExcluding(8, 8, 10, `${tile.row},${tile.col}`),
-  //       )
-  //     }
-  //     startGame()
-  //   } else {
-  //     if (mineCoordinates.has(`${tile.row},${tile.col}`)) {
-  //       gameOver()
-  //       // TODO: reveal mines
-  //       // revealMines()
-  //       updateTileState(tile.row, tile.col, TileState.EXPLODED)
-  //       return // if we hit a mine, don't do anything else, the game is over
-  //     }
-  //   }
-  // }, [currentClick, gameState, gameBoard, mineCoordinates])
-
-  // useEffect(() => {
-  //   // when the game state changes
-  //   // check if the game is over
-  //   if (gameState === GameState.LOST) {
-  //     setGameBoard((prevBoard) => {
-  //       const newBoard = [...prevBoard]
-  //       mineCoordinates.forEach((coord) => {
-  //         if (coord !== currentClick?.join()) {
-  //           const [r, c] = coord.split(',').map(Number)
-  //           newBoard[r][c].state = TileState.UNCOVERED
-  //         }
-  //       })
-  //       return newBoard
-  //     })
-  //   }
-  //   // if it is, reveal all mines
-  // }, [gameState, mineCoordinates, currentClick])
-
   function resetBoard() {
-    // setCurrentClick(null)
-    // setMineCoordnates(createMineSet(8, 8, 10))
-    // setGameState(GameState.NEW)
-    // setFlagsPlaced(0)
     dispatch({ type: ActionType.RESTART })
     clearInterval(timerRef.current)
     setTime(0)
-  }
-
-  function startGame() {
-    // setGameState(GameState.PLAYING)
-    // setFlagsPlaced(0)
-    dispatch({ type: ActionType.TOGGLE_FLAG, coords: { row: 0, col: 0 } })
-    clearInterval(timerRef.current)
-    setTime(0)
-    timerRef.current = setInterval(() => {
-      setTime((curr) => curr + 1)
-    }, 1000)
-  }
-
-  function gameOver() {
-    // setGameState(GameState.LOST)
-    clearInterval(timerRef.current)
   }
 
   function handleClick(e: React.MouseEvent, coords: Coords) {
     // if the game is over, do nothing
     if (state.gameState === GameState.LOST || state.gameState == GameState.WON)
       return
+    if (state.gameState === GameState.NEW) {
+      // start timer
+      clearInterval(timerRef.current)
+      setTime(0)
+      timerRef.current = setInterval(() => {
+        setTime((curr) => curr + 1)
+      }, 1000)
+    }
     // only allow clicks on covered tiles
     const tile = state.board[coords.row][coords.col]
     if (tile.state !== TileState.COVERED) return
