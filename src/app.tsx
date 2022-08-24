@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useReducer, useRef, useState } from 'react'
 import { clsx } from 'clsx'
-import clone from 'just-clone'
-// not currently in use
+
 const LEVELS = {
   beginner: {
     rows: 8,
@@ -48,6 +47,20 @@ function createMineSet(rows: number, cols: number, mines: number) {
     mineSet.add(
       `${Math.floor(Math.random() * rows)},${Math.floor(Math.random() * cols)}`,
     )
+  }
+  return mineSet
+}
+
+function createMineSetExcluding(
+  rows: number,
+  cols: number,
+  mines: number,
+  exclude: string,
+): Set<string> {
+  const mineSet = createMineSet(rows, cols, mines)
+  console.log('creating unique mineSet', mineSet)
+  if (mineSet.has(exclude)) {
+    return createMineSetExcluding(rows, cols, mines, exclude)
   }
   return mineSet
 }
@@ -122,41 +135,134 @@ function createGameBoard({
     })
 }
 
-const initialMineCoords = createMineSet(8, 8, 10)
+enum ActionType {
+  RESTART = 'RESTART',
+  UNCOVER = 'UNCOVER',
+  TOGGLE_FLAG = 'TOGGLE_FLAG',
+}
+type Coords = {
+  row: number
+  col: number
+}
+type Action = {
+  type: ActionType
+  coords?: Coords
+}
 
-// setGameBoard(rows, cols, mines): [Tile[][], Set<string>] {
-// what if the "gameBoard" is actually an object with the board and the mineCoords?
+type State = {
+  gameState: GameState
+  board: Tile[][]
+  width: number
+  height: number
+  mineCount: number
+  flagCount: number
+  uncoveredCellCount: number
+}
+
+function initState(action?: Action): State {
+  const { rows, cols, mines } = LEVELS.beginner
+  const mineCoords = createMineSet(rows, cols, mines)
+  return {
+    board: createGameBoard({ rows, cols, mineCoords }),
+    gameState: GameState.NEW,
+    width: rows,
+    height: cols,
+    mineCount: mineCoords.size,
+    flagCount: 0,
+    uncoveredCellCount: 0,
+    // mineCoords,
+  }
+}
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case ActionType.RESTART:
+      return initState()
+    case ActionType.UNCOVER:
+      return state
+    case ActionType.TOGGLE_FLAG:
+      return state
+    default:
+      console.error('unknown action', action)
+      return state
+  }
+}
 
 function App() {
-  const [gameBoard, setGameBoard] = useState<Tile[][]>(() =>
-    createGameBoard({ rows: 8, cols: 8, mineCoords: initialMineCoords }),
+  // const [gameState, setGameState] = useReducer(reducer, GameState.NEW)
+  const [state, dispatch] = useReducer(
+    reducer,
+    { type: ActionType.RESTART },
+    initState,
   )
-  const [mineCoordinates, setMineCoordnates] =
-    useState<Set<string>>(initialMineCoords)
 
-  const [gameState, setGameState] = useState<GameState>(GameState.NEW)
-  const [flagsPlaced, setFlagsPlaced] = useState(0)
   const [time, setTime] = useState(0)
 
   const timerRef = useRef<number>()
 
-  useEffect(() => {
-    setGameBoard(
-      createGameBoard({ rows: 8, cols: 8, mineCoords: mineCoordinates }),
-    )
-  }, [mineCoordinates])
+  // useEffect(() => {
+  //   setGameBoard(
+  //     createGameBoard({ rows: 8, cols: 8, mineCoords: mineCoordinates }),
+  //   )
+  // }, [mineCoordinates])
+
+  // useEffect(() => {
+  //   if (currentClick === null) return
+  //   const tile = gameBoard[currentClick[0]][currentClick[1]]
+  //   // if the game is over do nothing
+  //   if (gameState === GameState.LOST || gameState == GameState.WON) return
+  //   // only allow clicks on covered tiles
+  //   if (tile.state !== TileState.COVERED) return
+  //   if (gameState === GameState.NEW) {
+  //     if (tile.isMine) {
+  //       setMineCoordnates(
+  //         createMineSetExcluding(8, 8, 10, `${tile.row},${tile.col}`),
+  //       )
+  //     }
+  //     startGame()
+  //   } else {
+  //     if (mineCoordinates.has(`${tile.row},${tile.col}`)) {
+  //       gameOver()
+  //       // TODO: reveal mines
+  //       // revealMines()
+  //       updateTileState(tile.row, tile.col, TileState.EXPLODED)
+  //       return // if we hit a mine, don't do anything else, the game is over
+  //     }
+  //   }
+  // }, [currentClick, gameState, gameBoard, mineCoordinates])
+
+  // useEffect(() => {
+  //   // when the game state changes
+  //   // check if the game is over
+  //   if (gameState === GameState.LOST) {
+  //     setGameBoard((prevBoard) => {
+  //       const newBoard = [...prevBoard]
+  //       mineCoordinates.forEach((coord) => {
+  //         if (coord !== currentClick?.join()) {
+  //           const [r, c] = coord.split(',').map(Number)
+  //           newBoard[r][c].state = TileState.UNCOVERED
+  //         }
+  //       })
+  //       return newBoard
+  //     })
+  //   }
+  //   // if it is, reveal all mines
+  // }, [gameState, mineCoordinates, currentClick])
 
   function resetBoard() {
-    setMineCoordnates(createMineSet(8, 8, 10))
-    setGameState(GameState.NEW)
-    setFlagsPlaced(0)
+    // setCurrentClick(null)
+    // setMineCoordnates(createMineSet(8, 8, 10))
+    // setGameState(GameState.NEW)
+    // setFlagsPlaced(0)
+    dispatch({ type: ActionType.RESTART })
     clearInterval(timerRef.current)
     setTime(0)
   }
 
   function startGame() {
-    setGameState(GameState.PLAYING)
-    setFlagsPlaced(0)
+    // setGameState(GameState.PLAYING)
+    // setFlagsPlaced(0)
+    dispatch({ type: ActionType.TOGGLE_FLAG, coords: { row: 0, col: 0 } })
     clearInterval(timerRef.current)
     setTime(0)
     timerRef.current = setInterval(() => {
@@ -165,72 +271,41 @@ function App() {
   }
 
   function gameOver() {
-    setGameState(GameState.LOST)
+    // setGameState(GameState.LOST)
     clearInterval(timerRef.current)
   }
 
   function updateTileState(row: number, col: number, state: TileState) {
-    setGameBoard((prevBoard) => {
-      const newBoard = [...prevBoard]
-      newBoard[row][col].state = state
-      return newBoard
-    })
-  }
-
-  // TODO: this is unfinished
-  function revealMines() {
-    setGameBoard((prevBoard) => {
-      const newBoard = [...prevBoard]
-      mineCoordinates.forEach((coord) => {
-        const [r, c] = coord.split(',').map(Number)
-        newBoard[r][c].state = TileState.UNCOVERED
-      })
-      return newBoard
-    })
-  }
-
-  function reconfigureBoard(row: number, col: number) {
-    resetBoard()
-    // if row, col is mine: reconfigure again
-    if (mineCoordinates.has(`${row},${col}`)) {
-      reconfigureBoard(row, col)
-    }
+    // setGameBoard((prevBoard) => {
+    //   const newBoard = [...prevBoard]
+    //   newBoard[row][col].state = state
+    //   return newBoard
+    // })
   }
 
   function handleClick(e: React.MouseEvent, tile: Tile) {
-    // if the game is over, do nothing
-    if (gameState === GameState.LOST || gameState == GameState.WON) return
-    // only allow clicks on covered tiles
-    if (tile.state !== TileState.COVERED) return
-    if (gameState === GameState.NEW) {
-      if (tile.isMine) {
-        // TODO: ran into a race condition between states, need to rethink the seperation of gameBoard and mineCoords
-        // reconfigureBoard(tile.col, tile.row)
-      }
-      startGame()
-    }
-    if (mineCoordinates.has(`${tile.row},${tile.col}`)) {
-      gameOver()
-      // TODO: reveal mines
-      // revealMines()
-      updateTileState(tile.row, tile.col, TileState.EXPLODED)
-      return // if we hit a mine, don't do anything else, the game is over
-    }
-    // uncover tile(s)
-    updateTileState(tile.row, tile.col, TileState.UNCOVERED)
-    if (tile.surroundingMines === 0) {
-      // clone of the board state to prevent mutation of react state
-      const board = clone(gameBoard)
-      // get the new board state after finding all surrounding tiles with 0 surrounding mines and uncovering them
-      const updates = getTilesToUpdate(tile.row, tile.col, board)
-      setGameBoard(updates)
-    }
+    // setCurrentClick([tile.row, tile.col])
+    // // if the game is over, do nothing
+    // if (gameState === GameState.LOST || gameState == GameState.WON) return
+    // // only allow clicks on covered tiles
+    // if (tile.state !== TileState.COVERED) return
+    // // uncover tile(s)
+    // updateTileState(tile.row, tile.col, TileState.UNCOVERED)
+    // setCurrentSurroundingMines(tile.surroundingMines)
+    // if (tile.surroundingMines === 0) {
+    //   // clone of the board state to prevent mutation of react state
+    //   const board = clone(gameBoard)
+    //   // get the new board state after finding all surrounding tiles with 0 surrounding mines and uncovering them
+    //   const updates = getTilesToUpdate(tile.row, tile.col, board)
+    //   setGameBoard(updates)
+    // }
   }
 
   function handleContextMenu(e: React.MouseEvent, tile: Tile) {
     e.preventDefault()
     // if the game is over, do nothing
-    if (gameState === GameState.LOST || gameState == GameState.WON) return
+    if (state.gameState === GameState.LOST || state.gameState == GameState.WON)
+      return
     // don't do anything if tile is already revealed
     if (tile.state === TileState.UNCOVERED) return
     updateTileState(
@@ -243,22 +318,22 @@ function App() {
     <div>
       <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
       <div className="inline-block">
-        <div>{gameState === GameState.NEW && 'new'}</div>
-        <div>{gameState === GameState.PLAYING && 'playing'}</div>
-        <div>{gameState === GameState.WON && 'won'}</div>
-        <div>{gameState === GameState.LOST && 'lost'}</div>
+        <div>{state.gameState === GameState.NEW && 'new'}</div>
+        <div>{state.gameState === GameState.PLAYING && 'playing'}</div>
+        <div>{state.gameState === GameState.WON && 'won'}</div>
+        <div>{state.gameState === GameState.LOST && 'lost'}</div>
         <div className="flex justify-between">
           <div className="w-16">{/*flags:{flagsPlaced}*/}</div>
           <button className="text-6xl" onClick={resetBoard}>
-            {gameState === GameState.NEW && '😀'}
-            {gameState === GameState.PLAYING && '🥺'}
-            {gameState === GameState.WON && '🥳'}
-            {gameState === GameState.LOST && '😭'}
+            {state.gameState === GameState.NEW && '😀'}
+            {state.gameState === GameState.PLAYING && '🥺'}
+            {state.gameState === GameState.WON && '🥳'}
+            {state.gameState === GameState.LOST && '😭'}
           </button>
           <div className="w-16 text-right">{time}</div>
         </div>
         <div className="flex flex-col">
-          {gameBoard.map((row, rowIndex) => (
+          {state.board.map((row, rowIndex) => (
             <div key={rowIndex} className="flex flex-row justify-center">
               {row.map((tile, colIndex) => (
                 <GameTile
@@ -282,8 +357,8 @@ function GameTile({
   onTileContextMenu,
 }: {
   tile: Tile
-  onTileClick: (e: React.MouseEvent, tile: Tile) => void
-  onTileContextMenu: (e: React.MouseEvent, tile: Tile) => void
+  onTileClick: (e: React.MouseEvent, coords: Coords) => void
+  onTileContextMenu: (e: React.MouseEvent, coords: Coords) => void
 }) {
   return (
     <button
@@ -297,10 +372,12 @@ function GameTile({
         },
         'h-8 w-8  border border-black',
       )}
-      onClick={(e) => onTileClick(e, tile)}
-      onContextMenu={(e) => onTileContextMenu(e, tile)}
+      onClick={(e) => onTileClick(e, { row: tile.row, col: tile.col })}
+      onContextMenu={(e) =>
+        onTileContextMenu(e, { row: tile.row, col: tile.col })
+      }
     >
-      {/* {tile.state === TileState.COVERED && tile.isMine && 'x'} */}
+      {tile.state === TileState.COVERED && tile.isMine && 'x'}
       {tile.state === TileState.FLAGGED && '🚩'}
       {tile.state === TileState.EXPLODED && '💥'}
       {tile.state === TileState.UNCOVERED &&
