@@ -199,6 +199,14 @@ function reducer(state: State, action: Action): State {
             }
           })
         }),
+        flagCount:
+          action.coords != null
+            ? state.flagCount +
+              (state.board[action.coords.row][action.coords.col].state ===
+              TileState.FLAGGED
+                ? -1
+                : 1)
+            : state.flagCount,
       }
     default:
       console.error('unknown action', action)
