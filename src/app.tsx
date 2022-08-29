@@ -14,7 +14,6 @@
 
 import { useReducer, useRef, useState } from 'react'
 import { clsx } from 'clsx'
-import clone from 'just-clone'
 
 const LEVELS = {
   beginner: {
