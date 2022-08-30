@@ -84,10 +84,9 @@ enum ActionType {
   TOGGLE_FLAG,
 }
 
-interface Action {
-  type: ActionType
-  coords?: Coords
-}
+type Action =
+  | { type: ActionType.RESTART }
+  | { type: ActionType.UNCOVER | ActionType.TOGGLE_FLAG; coords: Coords }
 
 function createMineMap(
   width: number,
@@ -255,7 +254,7 @@ function reducer(state: State, action: Action): State {
         ? getStateOnUncover(state, action.coords)
         : state
     case ActionType.TOGGLE_FLAG: {
-      const coords = action.coords as Coords
+      const coords = action.coords
       return {
         ...state,
         board: state.board.map((row, rowIndex) => {
