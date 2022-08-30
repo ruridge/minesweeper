@@ -250,9 +250,7 @@ function reducer(state: State, action: Action): State {
     case ActionType.RESTART:
       return initState({ dificulty: LEVELS.beginner })
     case ActionType.UNCOVER:
-      return action.coords != null
-        ? getStateOnUncover(state, action.coords)
-        : state
+      return getStateOnUncover(state, action.coords)
     case ActionType.TOGGLE_FLAG: {
       const coords = action.coords
       return {
