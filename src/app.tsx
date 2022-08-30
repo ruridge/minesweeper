@@ -19,6 +19,7 @@
 
 import { useReducer, useRef, useState } from 'react'
 import { clsx } from 'clsx'
+import produce from 'immer'
 
 interface Dificulty {
   rows: number
@@ -119,7 +120,7 @@ function surroundingCoords(coords: Coords) {
     [row + 1, col - 1],
     [row + 1, col],
     [row + 1, col + 1],
-  ]
+  ] as Coords[]
 }
 
 function getSurroundingMineCount(startingCoords: Coords, mineSet: CoordsMap) {
@@ -159,90 +160,27 @@ function initState(initArg: { dificulty: Dificulty; avoid?: Coords }): State {
     mineCoords,
   }
 }
-function uncoverTiles(
-  board: Board,
-  coords: Coords,
-  mineCoords: CoordsMap,
-): Board {
+function uncoverTiles(state: State, currentCoords: Coords) {
   // uncover the tile we clicked on
-  return board.map((row, rowIndex) =>
-    row.map((tile, colIndex) => {
-      if (rowIndex === coords[0] && colIndex === coords[1]) {
-        return TileState.UNCOVERED
-      } else {
-        return tile
-      }
-      // then if there are no mines neibouring the tile, uncover all surrounding tiles
-      // continue uncovering neibour tiles until we find all mines
-    }),
-  )
-}
-
-// function recursivelyUncoverTiles(state: State, coords: Coords): State {
-//   const { board } = state
-//   if (surroundingMines(coords, state.mineCoords) === 0) {
-//     const surrounding = surroundingCoords(coords)
-//     for (const [r, c] of surrounding) {
-//       // todo...
-//       if (board[r][c].state === TileState.COVERED) {
-//         board = uncoverTiles(board, { row: r, col: c })
-//         board = recursivelyInitState(state, { row: r, col: c })
-//       }
-//     }
-//   }
-//   return { ...state, board }
-// }
-
-function getStateOnUncover(state: State, coords: Coords): State {
-  const { gameState, board, mineCoords } = state
-  switch (gameState) {
-    // if the game has already been won or lost, do nothing
-    case GameState.LOST:
-    case GameState.WON:
-      return state
-
-    case GameState.NEW:
-      // if it's a mine, reset the board
-      if (mineCoords.has(coords.join())) {
-        return {
-          ...initState({ dificulty: LEVELS.beginner, avoid: coords }),
-        }
-      }
-      // else uncover the tile
-      return {
-        ...state,
-        gameState: GameState.PLAYING,
-        board: uncoverTiles(board, coords, mineCoords),
-      }
-
-    case GameState.PLAYING:
-      // if we uncover a mine, explode the clicked mine and uncover all other mines
-      if (mineCoords.has(coords.join())) {
-        return {
-          ...state,
-          board: board.map((row, rowIndex) => {
-            return row.map((tile, colIndex) => {
-              if (rowIndex === coords[0] && colIndex === coords[1]) {
-                return TileState.EXPLODED
-              } else if (mineCoords.has([rowIndex, colIndex].join())) {
-                return TileState.UNCOVERED
-              } else {
-                return tile
-              }
-            })
-          }),
-          // and set the game state to lost
-          gameState: GameState.LOST,
-        }
-      } else {
-        // start uncovering tiles
-        return {
-          ...state,
-          board: uncoverTiles(board, coords, mineCoords),
-        }
-        // TODO: check if the game is won
-      }
-  }
+  return produce(state, (draft) => {
+    // TODO: don't use immer here, move it up a level to the reducer
+    const [currentX, currentY] = currentCoords
+    draft.gameState = GameState.PLAYING // TODO: remove this, put it in the reducer
+    draft.board[currentX][currentY] = TileState.UNCOVERED
+    // if there are no surrounding mines, uncover all surrounding tiles
+    // if (getSurroundingMineCount(currentCoords, draft.mineCoords) === 0) {
+    //   const surrounding = surroundingCoords(currentCoords)
+    //   surrounding
+    //     .filter( // filter out tiles that are out of bounds
+    //       ([x, y]) => x >= 0 && x < state.height && y >= 0 && y < state.width,
+    //     )
+    //     .forEach(([x, y]) => {
+    //       if (draft.board[x][y] === TileState.COVERED) {
+    //         uncoverTiles(draft, [x, y])
+    //       }
+    //     })
+    // }
+  })
 }
 
 function reducer(state: State, action: Action): State {
@@ -250,25 +188,52 @@ function reducer(state: State, action: Action): State {
     case ActionType.RESTART:
       return initState({ dificulty: LEVELS.beginner })
     case ActionType.UNCOVER:
-      return getStateOnUncover(state, action.coords)
-    case ActionType.TOGGLE_FLAG: {
-      const coords = action.coords
-      return {
-        ...state,
-        board: state.board.map((row, rowIndex) => {
-          return row.map((tile, colIndex) => {
-            if (rowIndex === coords[0] && colIndex === coords[1]) {
-              if (tile === TileState.FLAGGED) {
-                return TileState.COVERED
-              } else {
-                return TileState.FLAGGED
+      switch (state.gameState) {
+        // if the game has already been won or lost, do nothing
+        case GameState.LOST:
+        case GameState.WON:
+          return state
+
+        case GameState.NEW:
+          // if it's a mine, reset the board
+          if (state.mineCoords.has(action.coords.join())) {
+            return initState({
+              dificulty: LEVELS.beginner,
+              avoid: action.coords,
+            })
+          }
+        // falls through
+
+        case GameState.PLAYING:
+          // if we uncover a mine, explode the clicked mine and uncover all other mines
+          if (state.mineCoords.has(action.coords.join())) {
+            return produce(state, (draft) => {
+              const [x, y] = action.coords
+              draft.gameState = GameState.LOST
+              for (const [r, c] of state.mineCoords.values()) {
+                draft.board[r][c] = TileState.UNCOVERED
               }
-            } else {
-              return tile
-            }
-          })
-        }),
+              draft.board[x][y] = TileState.EXPLODED
+            })
+          }
+        // falls through
+
+        default: // if the game state is NEW or PLAYING the clicked tile is always uncovered
+          // start uncovering tiles
+          // TODO: use immer here (not inside uncoveredTiles)
+          return uncoverTiles(state, action.coords)
+        // TODO: check if the game is won
       }
+    case ActionType.TOGGLE_FLAG: {
+      const [x, y] = action.coords
+      return produce(state, (draft) => {
+        const tileState = draft.board[x][y]
+        if (tileState === TileState.COVERED) {
+          draft.board[x][y] = TileState.FLAGGED
+        } else if (tileState === TileState.FLAGGED) {
+          draft.board[x][y] = TileState.COVERED
+        }
+      })
     }
     default:
       console.error('unknown action', action)
