@@ -341,16 +341,14 @@ function App() {
         <div>{state.gameState === GameState.WON && 'won'}</div>
         <div>{state.gameState === GameState.LOST && 'lost'}</div>
         <div className="flex justify-between">
-          <div className="w-16 text-left">
-            {state.mineCoords.size - placedFlaggs}
-          </div>
+          <Display value={state.mineCoords.size - placedFlaggs} />
           <button className="text-6xl" onClick={resetBoard}>
             {state.gameState === GameState.NEW && '😀'}
             {state.gameState === GameState.PLAYING && '🥺'}
             {state.gameState === GameState.WON && '🥳'}
             {state.gameState === GameState.LOST && '😭'}
           </button>
-          <div className="w-16 text-right">{time}</div>
+          <Display value={time} alignment="right" />
         </div>
         <div className="flex flex-col">
           {state.board.map((row, rowIndex) => (
@@ -415,6 +413,31 @@ function GameTile(props: GameTileProps) {
               <span className="text-blue-700">{props.surroundingMines}</span>
             ))}
     </button>
+  )
+}
+
+const displayAlignments = {
+  left: clsx('text-left'),
+  right: clsx('text-right'),
+} as const
+
+type DisplayAlignment = keyof typeof displayAlignments
+
+interface DisplayProps {
+  value: number
+  alignment?: DisplayAlignment
+}
+function Display(props: DisplayProps) {
+  const alignment = props.alignment ?? 'left'
+  return (
+    <div
+      className={clsx(
+        displayAlignments[alignment],
+        'w-16 font-mono text-4xl text-red-700',
+      )}
+    >
+      {props.value}
+    </div>
   )
 }
 
