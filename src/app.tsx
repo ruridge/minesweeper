@@ -13,7 +13,7 @@
   - [x] count mines minus flags placed
   - [x] recursively uncovering all tiles when clicking on a tile with no surrounding mines
   - [x] stop timer when game is over
-  - [ ] win state
+  - [x] win state
   - [ ] double click to uncover surrounding tiles if number of surrounding mines matches number of surrounding flaggs placed
   - [ ] if flagged, don't reset tile on first click is mine
   - [ ] remove enums?
@@ -230,10 +230,19 @@ function reducer(state: State, action: Action): State {
           // start uncovering tiles
           return produce(state, (draft) => {
             draft.gameState = GameState.PLAYING
+
             uncoverTiles(draft, action.coords)
-            // TODO: check if the game is won
+
+            const boardSize = draft.width * draft.height
+            const totalUncoveredTiles = draft.board.reduce(
+              (acc, row) =>
+                acc + row.filter((tile) => tile === TileState.UNCOVERED).length,
+              0,
+            )
             // if the size of the board minus the number of uncovered tiles is equal to the number of mines, the game is won
-            // if (draft.mineCoords.size === draft.board.filter(row => row.filter(tile => tile === TileState.UNCOVERED).length).length) {
+            if (draft.mineCoords.size === boardSize - totalUncoveredTiles) {
+              draft.gameState = GameState.WON
+            }
           })
       }
     case ActionType.TOGGLE_FLAG: {
