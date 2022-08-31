@@ -11,7 +11,7 @@
   - [x] explode when you click on a mine
   - [x] prevent first click from being a mine
   - [x] count mines minus flags placed
-  - [ ] recursively uncovering all tiles when clicking on a tile with no surrounding mines
+  - [x] recursively uncovering all tiles when clicking on a tile with no surrounding mines
   - [ ] stop timer when game is over
   - [ ] win state
   - [ ] if flagged, don't reset tile on first click is mine
@@ -161,25 +161,25 @@ function initState(initArg: { dificulty: Dificulty; avoid?: Coords }): State {
     mineCoords,
   }
 }
-function uncoverTiles(board: Board, currentCoords: Coords) {
+function uncoverTiles(draftState: State, currentCoords: Coords) {
+  const { board, mineCoords, width, height } = draftState
   const [currentX, currentY] = currentCoords
   board[currentX][currentY] = TileState.UNCOVERED
   // uncover the tile we clicked on
-  // draft.gameState = GameState.PLAYING // TODO: remove this, put it in the reducer
   // if there are no surrounding mines, uncover all surrounding tiles
-  // if (getSurroundingMineCount(currentCoords, draft.mineCoords) === 0) {
-  //   const surrounding = surroundingCoords(currentCoords)
-  //   surrounding
-  //     .filter( // filter out tiles that are out of bounds
-  //       ([x, y]) => x >= 0 && x < state.height && y >= 0 && y < state.width,
-  //     )
-  //     .forEach(([x, y]) => {
-  //       if (draft.board[x][y] === TileState.COVERED) {
-  //         uncoverTiles(draft, [x, y])
-  //       }
-  //     })
-  // }
-  return board
+  if (getSurroundingMineCount(currentCoords, mineCoords) === 0) {
+    const surrounding = surroundingCoords(currentCoords)
+    surrounding
+      .filter(
+        // filter out tiles that are out of bounds
+        ([x, y]) => x >= 0 && x < width && y >= 0 && y < height,
+      )
+      .forEach(([x, y]) => {
+        if (board[x][y] === TileState.COVERED) {
+          uncoverTiles(draftState, [x, y])
+        }
+      })
+  }
 }
 
 function reducer(state: State, action: Action): State {
@@ -221,7 +221,7 @@ function reducer(state: State, action: Action): State {
           // start uncovering tiles
           return produce(state, (draft) => {
             draft.gameState = GameState.PLAYING
-            draft.board = uncoverTiles(draft.board, action.coords)
+            uncoverTiles(draft, action.coords)
             // TODO: check if the game is won
           })
       }
