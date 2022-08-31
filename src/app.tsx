@@ -12,13 +12,15 @@
   - [x] prevent first click from being a mine
   - [x] count mines minus flags placed
   - [x] recursively uncovering all tiles when clicking on a tile with no surrounding mines
-  - [ ] stop timer when game is over
+  - [x] stop timer when game is over
   - [ ] win state
+  - [ ] double click to uncover surrounding tiles if number of surrounding mines matches number of surrounding flaggs placed
   - [ ] if flagged, don't reset tile on first click is mine
   - [ ] remove enums?
 */
 
-import { useReducer, useRef, useState } from 'react'
+import { useReducer } from 'react'
+import { useInterval } from 'react-use'
 import { clsx } from 'clsx'
 import produce from 'immer'
 
@@ -78,16 +80,18 @@ interface State {
   width: number
   height: number
   mineCoords: CoordsMap
+  time: number
 }
 
 enum ActionType {
   RESTART,
   UNCOVER,
   TOGGLE_FLAG,
+  TIMER_TICK,
 }
 
 type Action =
-  | { type: ActionType.RESTART }
+  | { type: ActionType.RESTART | ActionType.TIMER_TICK }
   | { type: ActionType.UNCOVER | ActionType.TOGGLE_FLAG; coords: Coords }
 
 function createMineMap(
@@ -159,6 +163,7 @@ function initState(initArg: { dificulty: Dificulty; avoid?: Coords }): State {
     width: rows,
     height: cols,
     mineCoords,
+    time: 0,
   }
 }
 function uncoverTiles(draftState: State, currentCoords: Coords) {
@@ -186,6 +191,10 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case ActionType.RESTART:
       return initState({ dificulty: LEVELS.beginner })
+    case ActionType.TIMER_TICK:
+      return produce(state, (draft) => {
+        draft.time += 1
+      })
     case ActionType.UNCOVER:
       switch (state.gameState) {
         // if the game has already been won or lost, do nothing
@@ -223,6 +232,8 @@ function reducer(state: State, action: Action): State {
             draft.gameState = GameState.PLAYING
             uncoverTiles(draft, action.coords)
             // TODO: check if the game is won
+            // if the size of the board minus the number of uncovered tiles is equal to the number of mines, the game is won
+            // if (draft.mineCoords.size === draft.board.filter(row => row.filter(tile => tile === TileState.UNCOVERED).length).length) {
           })
       }
     case ActionType.TOGGLE_FLAG: {
@@ -249,9 +260,12 @@ function App() {
     initState,
   )
 
-  const [time, setTime] = useState(0)
-
-  const timerRef = useRef<number>()
+  useInterval(() => {
+    if (state.gameState !== GameState.PLAYING) {
+      return
+    }
+    dispatch({ type: ActionType.TIMER_TICK })
+  }, 1000)
 
   const placedFlaggs = state.board.reduce((acc, row) => {
     return (
@@ -264,22 +278,12 @@ function App() {
 
   function resetBoard() {
     dispatch({ type: ActionType.RESTART })
-    clearInterval(timerRef.current)
-    setTime(0)
   }
 
   function handleClick(e: React.MouseEvent, coords: Coords) {
     // if the game is over, do nothing
     if (state.gameState === GameState.LOST || state.gameState == GameState.WON)
       return
-    if (state.gameState === GameState.NEW) {
-      // start timer
-      clearInterval(timerRef.current)
-      setTime(0)
-      timerRef.current = setInterval(() => {
-        setTime((curr) => curr + 1)
-      }, 1000)
-    }
     // only allow clicks on covered tiles
     const tile = state.board[coords[0]][coords[1]]
     if (tile !== TileState.COVERED) return
@@ -312,7 +316,7 @@ function App() {
             {state.gameState === GameState.WON && '🥳'}
             {state.gameState === GameState.LOST && '😭'}
           </button>
-          <Display value={time} alignment="right" />
+          <Display value={state.time} alignment="right" />
         </div>
         <div className="flex flex-col">
           {state.board.map((row, rowIndex) => (
