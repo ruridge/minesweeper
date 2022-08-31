@@ -14,6 +14,7 @@
   - [ ] recursively uncovering all tiles when clicking on a tile with no surrounding mines
   - [ ] stop timer when game is over
   - [ ] win state
+  - [ ] if flagged, don't reset tile on first click is mine
   - [ ] remove enums?
 */
 
@@ -160,27 +161,25 @@ function initState(initArg: { dificulty: Dificulty; avoid?: Coords }): State {
     mineCoords,
   }
 }
-function uncoverTiles(state: State, currentCoords: Coords) {
+function uncoverTiles(board: Board, currentCoords: Coords) {
+  const [currentX, currentY] = currentCoords
+  board[currentX][currentY] = TileState.UNCOVERED
   // uncover the tile we clicked on
-  return produce(state, (draft) => {
-    // TODO: don't use immer here, move it up a level to the reducer
-    const [currentX, currentY] = currentCoords
-    draft.gameState = GameState.PLAYING // TODO: remove this, put it in the reducer
-    draft.board[currentX][currentY] = TileState.UNCOVERED
-    // if there are no surrounding mines, uncover all surrounding tiles
-    // if (getSurroundingMineCount(currentCoords, draft.mineCoords) === 0) {
-    //   const surrounding = surroundingCoords(currentCoords)
-    //   surrounding
-    //     .filter( // filter out tiles that are out of bounds
-    //       ([x, y]) => x >= 0 && x < state.height && y >= 0 && y < state.width,
-    //     )
-    //     .forEach(([x, y]) => {
-    //       if (draft.board[x][y] === TileState.COVERED) {
-    //         uncoverTiles(draft, [x, y])
-    //       }
-    //     })
-    // }
-  })
+  // draft.gameState = GameState.PLAYING // TODO: remove this, put it in the reducer
+  // if there are no surrounding mines, uncover all surrounding tiles
+  // if (getSurroundingMineCount(currentCoords, draft.mineCoords) === 0) {
+  //   const surrounding = surroundingCoords(currentCoords)
+  //   surrounding
+  //     .filter( // filter out tiles that are out of bounds
+  //       ([x, y]) => x >= 0 && x < state.height && y >= 0 && y < state.width,
+  //     )
+  //     .forEach(([x, y]) => {
+  //       if (draft.board[x][y] === TileState.COVERED) {
+  //         uncoverTiles(draft, [x, y])
+  //       }
+  //     })
+  // }
+  return board
 }
 
 function reducer(state: State, action: Action): State {
@@ -202,7 +201,7 @@ function reducer(state: State, action: Action): State {
               avoid: action.coords,
             })
           }
-        // falls through
+        // falls through to default if we didn't hit a mine
 
         case GameState.PLAYING:
           // if we uncover a mine, explode the clicked mine and uncover all other mines
@@ -216,13 +215,15 @@ function reducer(state: State, action: Action): State {
               draft.board[x][y] = TileState.EXPLODED
             })
           }
-        // falls through
+        // falls through if we didn't hit a mine
 
         default: // if the game state is NEW or PLAYING the clicked tile is always uncovered
           // start uncovering tiles
-          // TODO: use immer here (not inside uncoveredTiles)
-          return uncoverTiles(state, action.coords)
-        // TODO: check if the game is won
+          return produce(state, (draft) => {
+            draft.gameState = GameState.PLAYING
+            draft.board = uncoverTiles(draft.board, action.coords)
+            // TODO: check if the game is won
+          })
       }
     case ActionType.TOGGLE_FLAG: {
       const [x, y] = action.coords
