@@ -1,19 +1,6 @@
 /*
 # TODO:
-  - [x] timer
-  - [x] mine counter
-  - [x] reset game
-  - [x] flagging a tile
-  - [x] clicking on a tile, revealing it if it's not flagged
-  - [x] display number of surrounding mines on an uncovered tile
-  - [x] consolodate state that can be computed from other state
-  - [x] uncover all mines when game is lost
-  - [x] explode when you click on a mine
-  - [x] prevent first click from being a mine
-  - [x] count mines minus flags placed
-  - [x] recursively uncovering all tiles when clicking on a tile with no surrounding mines
-  - [x] stop timer when game is over
-  - [x] win state
+  - [ ] add dev mode
   - [ ] double click to uncover surrounding tiles if number of surrounding mines matches number of surrounding flaggs placed
   - [ ] if flagged, don't reset tile on first click is mine
   - [ ] remove enums?
@@ -81,6 +68,7 @@ interface State {
   height: number
   mineCoords: CoordsMap
   time: number
+  devMode: boolean
 }
 
 enum ActionType {
@@ -88,10 +76,16 @@ enum ActionType {
   UNCOVER,
   TOGGLE_FLAG,
   TIMER_TICK,
+  TOGGLE_DEV_MODE,
 }
 
 type Action =
-  | { type: ActionType.RESTART | ActionType.TIMER_TICK }
+  | {
+      type:
+        | ActionType.RESTART
+        | ActionType.TIMER_TICK
+        | ActionType.TOGGLE_DEV_MODE
+    }
   | { type: ActionType.UNCOVER | ActionType.TOGGLE_FLAG; coords: Coords }
 
 function createMineMap(
@@ -164,6 +158,7 @@ function initState(initArg: { dificulty: Dificulty; avoid?: Coords }): State {
     height: cols,
     mineCoords,
     time: 0,
+    devMode: false,
   }
 }
 function uncoverTiles(draftState: State, currentCoords: Coords) {
@@ -256,6 +251,12 @@ function reducer(state: State, action: Action): State {
         }
       })
     }
+
+    case ActionType.TOGGLE_DEV_MODE:
+      return produce(state, (draft) => {
+        draft.devMode = !draft.devMode
+      })
+
     default:
       console.error('unknown action', action)
       return state
@@ -310,44 +311,59 @@ function App() {
     dispatch({ type: ActionType.TOGGLE_FLAG, coords })
   }
   return (
-    <div>
-      <h1 className="my-9 text-5xl font-bold">Minesweeper</h1>
-      <div className="inline-block">
-        <div>{state.gameState === GameState.NEW && 'new'}</div>
-        <div>{state.gameState === GameState.PLAYING && 'playing'}</div>
-        <div>{state.gameState === GameState.WON && 'won'}</div>
-        <div>{state.gameState === GameState.LOST && 'lost'}</div>
-        <div className="flex justify-between">
-          <Display value={state.mineCoords.size - placedFlaggs} />
-          <button className="text-6xl" onClick={resetBoard}>
-            {state.gameState === GameState.NEW && '😀'}
-            {state.gameState === GameState.PLAYING && '🥺'}
-            {state.gameState === GameState.WON && '🥳'}
-            {state.gameState === GameState.LOST && '😭'}
-          </button>
-          <Display value={state.time} alignment="right" />
-        </div>
-        <div className="flex flex-col">
-          {state.board.map((row, rowIndex) => (
-            <div key={rowIndex} className="flex flex-row justify-center">
-              {row.map((tile, colIndex) => (
-                <GameTile
-                  key={`${rowIndex},${colIndex}`}
-                  x={rowIndex}
-                  y={colIndex}
-                  onTileClick={handleClick}
-                  onTileContextMenu={handleContextMenu}
-                  tileState={tile}
-                  isMine={state.mineCoords.has([rowIndex, colIndex].join())}
-                  surroundingMines={getSurroundingMineCount(
-                    [rowIndex, colIndex],
-                    state.mineCoords,
-                  )}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+    <div className="w-screen max-w-md border-2 border-neutral-300 bg-neutral-400">
+      <div className="flex justify-between bg-blue-900">
+        <h1>💣 Minesweeper</h1>
+        <div>_☐☒</div>
+      </div>
+      <div className="flex space-x-2 px-2">
+        <button disabled>Game</button>
+        <button disabled>Help</button>
+        <button onClick={() => dispatch({ type: ActionType.TOGGLE_DEV_MODE })}>
+          Dev
+        </button>
+      </div>
+      <div className="h-6">
+        {state.devMode && (
+          <div>
+            {state.gameState === GameState.NEW && 'new'}
+            {state.gameState === GameState.PLAYING && 'playing'}
+            {state.gameState === GameState.WON && 'won'}
+            {state.gameState === GameState.LOST && 'lost'}
+          </div>
+        )}
+      </div>
+      <div className="flex justify-between">
+        <Display value={state.mineCoords.size - placedFlaggs} />
+        <button className="text-6xl" onClick={resetBoard}>
+          {state.gameState === GameState.NEW && '😀'}
+          {state.gameState === GameState.PLAYING && '🥺'}
+          {state.gameState === GameState.WON && '🥳'}
+          {state.gameState === GameState.LOST && '😭'}
+        </button>
+        <Display value={state.time} alignment="right" />
+      </div>
+      <div className="flex flex-col">
+        {state.board.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex flex-row justify-center">
+            {row.map((tile, colIndex) => (
+              <GameTile
+                key={`${rowIndex},${colIndex}`}
+                x={rowIndex}
+                y={colIndex}
+                onTileClick={handleClick}
+                onTileContextMenu={handleContextMenu}
+                tileState={tile}
+                isMine={state.mineCoords.has([rowIndex, colIndex].join())}
+                surroundingMines={getSurroundingMineCount(
+                  [rowIndex, colIndex],
+                  state.mineCoords,
+                )}
+                isDevMode={state.devMode}
+              />
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -362,6 +378,7 @@ interface GameTileProps {
   onTileContextMenu: TileClickHandler
   isMine: boolean
   surroundingMines: number
+  isDevMode: boolean
 }
 
 function GameTile(props: GameTileProps) {
@@ -369,18 +386,21 @@ function GameTile(props: GameTileProps) {
     <button
       className={clsx(
         {
-          'bg-gray-400':
+          'bg-neutral-400':
             props.tileState === TileState.COVERED ||
             props.tileState === TileState.FLAGGED,
-          'bg-gray-200': props.tileState === TileState.UNCOVERED,
-          'bg-red-500': props.tileState === TileState.EXPLODED,
+          'bg-neutral-200': props.tileState === TileState.UNCOVERED,
+          'bg-red-600': props.tileState === TileState.EXPLODED,
         },
-        'h-8 w-8  border border-black',
+        'aspect-square w-full grow basis-0 border border-black',
       )}
       onClick={(e) => props.onTileClick(e, [props.x, props.y])}
       onContextMenu={(e) => props.onTileContextMenu(e, [props.x, props.y])}
     >
-      {props.tileState === TileState.COVERED && props.isMine && 'x'}
+      {props.isDevMode &&
+        props.tileState === TileState.COVERED &&
+        props.isMine &&
+        'x'}
       {props.tileState === TileState.FLAGGED && '🚩'}
       {props.tileState === TileState.EXPLODED && '💥'}
       {props.tileState === TileState.UNCOVERED &&
