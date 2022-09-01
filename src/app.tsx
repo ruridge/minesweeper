@@ -319,7 +319,10 @@ function App() {
       <div className="flex space-x-2 px-2">
         <button disabled>Game</button>
         <button disabled>Help</button>
-        <button onClick={() => dispatch({ type: ActionType.TOGGLE_DEV_MODE })}>
+        <button
+          className="first-letter:underline"
+          onClick={() => dispatch({ type: ActionType.TOGGLE_DEV_MODE })}
+        >
           Dev
         </button>
       </div>
